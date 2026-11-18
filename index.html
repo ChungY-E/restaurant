@@ -1,11 +1,294 @@
-<script>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>레스토랑 예약 시스템</title>
+    <!-- Supabase JS 라이브러리 (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* 90s OS 스타일 디자인 */
+        body {
+            background-color: #008080;
+            font-family: 'MS Sans Serif', Tahoma, sans-serif;
+            margin: 0;
+            padding: 10px;
+            color: black;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .window {
+            background-color: #c0c0c0;
+            border-top: 2px solid #ffffff;
+            border-left: 2px solid #ffffff;
+            border-right: 2px solid #000000;
+            border-bottom: 2px solid #000000;
+            margin-bottom: 15px;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+        }
+        .title-bar {
+            background-color: #000080;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 3px 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .title-bar-text {
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+        .window-body {
+            padding: 15px;
+        }
+        button {
+            background-color: #c0c0c0;
+            border-top: 2px solid #ffffff;
+            border-left: 2px solid #ffffff;
+            border-right: 2px solid #000000;
+            border-bottom: 2px solid #000000;
+            padding: 4px 15px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        button:active {
+            border-top: 2px solid #000000;
+            border-left: 2px solid #000000;
+            border-right: 2px solid #ffffff;
+            border-bottom: 2px solid #ffffff;
+            padding: 5px 14px 3px 16px;
+        }
+        input, select {
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-right: 2px solid #ffffff;
+            border-bottom: 2px solid #ffffff;
+            padding: 4px;
+            background: #ffffff;
+            font-family: inherit;
+            box-sizing: border-box;
+            width: 100%;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 8px;
+        }
+        .form-group label {
+            margin-bottom: 4px;
+        }
+        .flex-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .flex-row .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        /* 테이블 (예약표) 디자인 */
+        .table-wrapper {
+            overflow-x: auto;
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-right: 2px solid #ffffff;
+            border-bottom: 2px solid #ffffff;
+            background: #ffffff;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 600px;
+        }
+        th, td {
+            border: 1px solid #c0c0c0;
+            padding: 6px;
+            text-align: center;
+        }
+        th {
+            background-color: #c0c0c0;
+            border-top: 1px solid #ffffff;
+            border-left: 1px solid #ffffff;
+            border-right: 1px solid #808080;
+            border-bottom: 1px solid #808080;
+        }
+        td {
+            height: 55px;
+            vertical-align: middle;
+        }
+        .reserved-cell {
+            background-color: #800000;
+            color: white;
+            font-weight: bold;
+        }
+        .reserved-meta {
+            font-size: 11px;
+            color: #ffff00;
+            font-weight: normal;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .search-results {
+            margin-top: 10px;
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-right: 2px solid #ffffff;
+            border-bottom: 2px solid #ffffff;
+            background: #ffffff;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 2px;
+        }
+        .search-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px dashed #c0c0c0;
+        }
+        @media(min-width: 600px) {
+            .form-group {
+                flex-direction: row;
+                align-items: center;
+            }
+            .form-group label {
+                width: 90px;
+                margin-bottom: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 1. 예약 등록 창 -->
+        <div class="window">
+            <div class="title-bar">
+                <span class="title-bar-text">레스토랑 예약 등록.exe</span>
+            </div>
+            <div class="window-body">
+                <form id="reservation-form">
+                    <div class="flex-row">
+                        <div class="form-group">
+                            <label>메뉴</label>
+                            <select id="menu_id" name="menu_id" required>
+                                <option value="" disabled selected>로딩 중...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>날짜</label>
+                            <input type="date" id="reservation_date" name="reservation_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>시간</label>
+                            <select name="reservation_time" required>
+                                <option value="17">17시</option>
+                                <option value="18">18시</option>
+                                <option value="19">19시</option>
+                                <option value="20">20시</option>
+                                <option value="21">21시</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex-row">
+                        <div class="form-group">
+                            <label>예약자 성명</label>
+                            <input type="text" name="customer_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>인원수</label>
+                            <input type="number" name="guest_count" min="1" required>
+                        </div>
+                    </div>
+                    <div style="text-align: right; margin-top: 10px;">
+                        <button type="submit">예약하기</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 2. 주간 예약표 창 -->
+        <div class="window">
+            <div class="title-bar">
+                <span class="title-bar-text">주간 예약 현황.exe</span>
+            </div>
+            <div class="window-body">
+                <div class="toolbar">
+                    <div style="display:flex; align-items:center; gap:5px; flex:1; min-width: 200px;">
+                        <span>조회 메뉴:</span>
+                        <select id="tt-menu-select" onchange="loadTimetable()" style="width: 180px;">
+                            <option value="ALL">모든 메뉴 보기</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button onclick="changeWeek(-1)">◀ 이전 주</button>
+                        <span id="week-label" style="margin:0 10px; font-weight:bold;"></span>
+                        <button onclick="changeWeek(1)">다음 주 ▶</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="timetable">
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th id="th-day-0">월</th>
+                                <th id="th-day-1">화</th>
+                                <th id="th-day-2">수</th>
+                                <th id="th-day-3">목</th>
+                                <th id="th-day-4">금</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tt-body">
+                            <!-- JS로 채워짐 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 예약 검색 및 취소 창 -->
+        <div class="window">
+            <div class="title-bar">
+                <span class="title-bar-text">예약 검색 및 취소.exe</span>
+            </div>
+            <div class="window-body">
+                <form id="search-form" class="flex-row" onsubmit="loadSearchList(event)">
+                    <input type="text" id="search-name" placeholder="예약자 성명 검색" style="flex:1;">
+                    <select id="search-menu" style="flex:1;">
+                        <option value="">모든 메뉴</option>
+                    </select>
+                    <input type="date" id="search-date" style="flex:1;">
+                    <button type="submit">검색</button>
+                </form>
+                <div class="search-results" id="search-results">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
         // ==========================================
-        // ★ 중요: 여기에 본인의 Supabase URL과 KEY를 넣으세요!
+        // ★ 중요: 아래 두 줄에 본인의 Supabase URL과 KEY를 다시 넣어주세요!
         // ==========================================
         const SUPABASE_URL = 'https://hayzmdedaahowsudpkqr.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_jfscPSXH2kq71Vu8WCf9Hg_ZX8bfOic';
         
-        // 이름 충돌을 피하기 위해 supabaseClient로 변수명 변경
+        // 입력 확인용 방어 코드
+        if (SUPABASE_URL.includes('여기에')) {
+            alert("🚨 주의!\n소스 코드 하단의 SUPABASE_URL과 SUPABASE_KEY를 본인의 값으로 변경하지 않았습니다.\n코드를 메모장으로 열고 본인의 키값으로 수정한 뒤 다시 실행해 주세요.");
+        }
+
+        // 이름 충돌 문제를 해결한 클라이언트 변수 (supabase -> supabaseClient)
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let menus = [];
@@ -45,7 +328,7 @@
             }
             
             if (!data || data.length === 0) {
-                menuSelect.innerHTML = `<option value="">메뉴 데이터가 없습니다</option>`;
+                menuSelect.innerHTML = `<option value="">메뉴 데이터가 없습니다 (SQL 확인 필요)</option>`;
                 return;
             }
             
@@ -69,7 +352,7 @@
             const formData = new FormData(e.target);
             
             if (!formData.get('menu_id')) {
-                alert("메뉴를 선택해 주세요.");
+                alert("메뉴를 선택해 주세요. (메뉴 목록이 안 뜬다면 DB 확인 필요)");
                 return;
             }
 
@@ -230,3 +513,5 @@
 
         document.addEventListener('DOMContentLoaded', init);
     </script>
+</body>
+</html>
